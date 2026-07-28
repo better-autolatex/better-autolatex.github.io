@@ -1,0 +1,157 @@
+.bal-toast {
+  position: fixed;
+  bottom: 24px;
+  left: calc((100vw - var(--bal-split-width, 0px)) / 2);
+  transform: translateX(-50%) translateY(20px);
+  background: #202124;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font: 13px/1.4 'Google Sans', Arial, sans-serif;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 2147483647;
+  max-width: 80vw;
+  white-space: pre-wrap;
+  text-align: center;
+}
+
+.bal-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.bal-toast.ok   { background: #188038; }
+.bal-toast.err  { background: #c5221f; }
+.bal-toast.info { background: #1a73e8; }
+
+.bal-split-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: var(--bal-split-width, 50vw);
+  min-width: 340px;
+  max-width: 72vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #0e0710 0%, #110914 100%);
+  border-left: 1px solid rgba(255, 80, 130, 0.18);
+  box-shadow: -18px 0 38px rgba(0, 0, 0, 0.4);
+  z-index: 2147483647;
+  overflow: hidden;
+  /* Closed state: slid off to the right and faded out. `display` can't be
+     animated, so we use transform + opacity + visibility instead. The
+     visibility delay keeps the panel interactive-free until the slide-out
+     finishes. Bump the 0.55s values to lengthen/shorten the animation. */
+  transform: translateX(100%);
+  opacity: 0;
+  visibility: hidden;
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.55s ease,
+              visibility 0s linear 0.55s;
+}
+
+.bal-split-panel.open {
+  transform: translateX(0);
+  opacity: 1;
+  visibility: visible;
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.55s ease,
+              visibility 0s;
+}
+
+.bal-split-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 14px 16px;
+  border-bottom: 1px solid rgba(255, 80, 130, 0.12);
+  background:
+    radial-gradient(circle at top right, rgba(255, 77, 136, 0.18), transparent 28%),
+    rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
+}
+
+.bal-split-title-wrap { min-width: 0; }
+
+.bal-split-kicker {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffa060;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.bal-split-title {
+  font: 600 13px/1.35 "Segoe UI", Arial, sans-serif;
+  color: #fdeef5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bal-split-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.bal-split-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 80, 130, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fdeef5;
+  border-radius: 10px;
+  padding: 8px 11px;
+  font: 600 12px/1 "Segoe UI", Arial, sans-serif;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.bal-split-btn:hover {
+  background: rgba(255, 80, 130, 0.1);
+  border-color: rgba(255, 80, 130, 0.28);
+  transform: translateY(-1px);
+}
+
+.bal-mode-btn { font-weight: 700; min-width: 48px; }
+
+.bal-mode-active {
+  background: rgba(255, 112, 53, 0.18) !important;
+  border-color: rgba(255, 112, 53, 0.38) !important;
+  color: #ffa060 !important;
+}
+
+.bal-split-frame {
+  width: 100%;
+  flex: 1;
+  border: 0;
+  background: #ffffff;
+}
+
+.bal-split-resize-handle {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  background: transparent;
+  transition: background 0.12s;
+}
+
+.bal-split-resize-handle:hover,
+.bal-split-resize-handle.dragging {
+  background: rgba(255, 112, 53, 0.22);
+}
+
+html.bal-split-open #docs-header-container {
+  width: var(--bal-doc-width, 100vw) !important;
+  max-width: var(--bal-doc-width, 100vw) !important;
+}

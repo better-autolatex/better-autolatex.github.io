@@ -1,0 +1,80 @@
+{
+  "manifest_version": 3,
+  "name": "BETTER AutoLaTeX",
+  "version": "2.0.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApMhA8d+/GCv9Sj5olso0Z2KXL8mMpGr+6WhcTY5cJfTAsxEkf4iYe2kg90Q1qglR5xkeuH9qrSZzSNg58iIbIjCqmanivvbnd5g+E7lUuBrkl7SSK4ghEebHVZVcpkAawqdNDj7FPyZ/mySp7ra34oRP0PQaXRayvOuqvRYtyuAD3Fl/IP9/QjLh2A48u786avES0AZ2MKs2IZyqTf/AFNVyMAQxGBrB5q7WMRW5UiiTyvnptQdbZi9+iD2OIKJWc+ynB0R9SzZTtcCh3nh/+XV91fjzDCdIYiX92ZM3Op3KXlgsXKLcic3pKLOrVDqz+LnXvonvw4oRIGiMcdK6tQIDAQAB",
+  "description": "Overleaf-style LaTeX rendering inside Google Docs. Use the extension toolbar popup for render, download, settings, preamble, help, and split-view preview.",
+  "permissions": [
+    "storage",
+    "downloads",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://docs.google.com/*",
+    "https://texlive.net/*",
+    "https://script.google.com/*",
+    "https://script.googleusercontent.com/*"
+  ],
+  "background": {
+    "service_worker": "scripts/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://docs.google.com/document/*"
+      ],
+      "js": [
+        "scripts/content.js",
+        "scripts/formatter.js"
+      ],
+      "css": [
+        "styles/panel.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://docs.google.com/document/*"
+      ],
+      "js": [
+        "scripts/resize-bridge.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false,
+      "world": "MAIN"
+    }
+  ],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Ctrl+Shift+L", "mac": "Command+Shift+L" },
+      "description": "Open the BETTER AutoLaTeX popup"
+    },
+    "render": {
+      "suggested_key": { "default": "Ctrl+Shift+Z", "mac": "Command+Shift+Z" },
+      "description": "Render the Google Doc as a PDF"
+    },
+    "download": {
+      "suggested_key": { "default": "Ctrl+Shift+X", "mac": "Command+Shift+X" },
+      "description": "Render and download the PDF"
+    }
+  },
+  "action": {
+    "default_title": "BETTER AutoLaTeX",
+    "default_popup": "html/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

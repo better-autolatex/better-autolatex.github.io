@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>BETTER AutoLaTeX — Settings</title>
+  <link rel="stylesheet" href="../styles/page.css">
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-nav">
+    <a href="javascript:window.close()" class="back-btn" id="backBtn">&#8592; Back</a>
+  </div>
+  <h1>Settings</h1>
+  <p>Save changes to this document, or set the defaults used by new documents.</p>
+</div>
+
+<div class="page">
+
+  <div class="card">
+    <div class="section-label">Document</div>
+    <h2>Output format</h2>
+    <p class="section-intro">Pick a LaTeX document class. <code>exam</code> uses the exam preamble; everything else uses the standard article preamble.</p>
+
+    <div class="field">
+      <label for="docType">Document Class</label>
+      <input type="text" id="docType" placeholder="e.g. article, exam, scrartcl…"
+             style="font-family:'Roboto Mono','Courier New',monospace">
+      <div class="hint">Saved as lowercase. Editing this will switch the default preamble unless you have a custom one.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Display</div>
+    <h2>Formatting font</h2>
+    <p class="section-intro">Stored for compatibility with the original add-on. Used when LaTeX source is rendered to PDF.</p>
+
+    <div class="row-2">
+      <div class="field" style="margin-bottom:0">
+        <label for="fontFamily">Font Family</label>
+        <input type="text" id="fontFamily" placeholder="e.g. Roboto Mono">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="fontSize">Size (pt)</label>
+        <input type="number" id="fontSize" min="6" max="36" step="1">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Display</div>
+    <h2>Syntax colours</h2>
+    <p class="section-intro">Stored for compatibility with the original add-on.</p>
+
+    <div class="color-grid">
+      <div class="color-row">
+        <input type="color" id="clrDefault">
+        <span class="clr-label">Regular text<br>&amp; braces</span>
+      </div>
+      <div class="color-row">
+        <input type="color" id="clrCommand">
+        <span class="clr-label">\commands<br>outside math</span>
+      </div>
+      <div class="color-row">
+        <input type="color" id="clrEnvName">
+        <span class="clr-label">Environment<br>names</span>
+      </div>
+      <div class="color-row">
+        <input type="color" id="clrMathContent">
+        <span class="clr-label">$math$<br>content</span>
+      </div>
+      <div class="color-row">
+        <input type="color" id="clrMathCommand">
+        <span class="clr-label">\commands<br>inside math</span>
+      </div>
+      <div class="color-row">
+        <input type="color" id="clrComment">
+        <span class="clr-label">% comments</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="saveBtn">Save</button>
+    <button class="btn btn-secondary" id="setDefaultBtn">Set Default</button>
+  </div>
+  <div id="status" class="status"></div>
+
+</div>
+
+<script type="module" src="../scripts/settings.js"></script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BETTER AutoLaTeX — Google Docs to LaTeX</title>
+  <style>
+    :root {
+      --bg: #0d0510;
+      --bg-elevated: #2c1a36;
+      --bg-soft: #351f40;
+      --bg-interactive: #3e254c;
+      --bg-interactive-hover: #4a2d5a;
+      --text: #fff0f7;
+      --text-muted: #d8aac8;
+      --text-dim: #a07590;
+      --border: rgba(255, 100, 160, .35);
+      --accent: #ff8040;
+      --accent-strong: #ffb070;
+      --success: #ff5fa0;
+      --shadow-lg: 0 18px 45px rgba(0, 0, 0, .58);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--text);
+      font: 16px/1.6 "Segoe UI", Inter, Roboto, Arial, sans-serif;
+      background: radial-gradient(ellipse at top right, rgba(255, 95, 160, .16), transparent 34%), var(--bg);
+    }
+
+    a { color: inherit; }
+    .wrap { width: min(1120px, calc(100% - 40px)); margin: auto; }
+    .hero { padding: 74px 0 58px; }
+    .hero-card, .card {
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      background:
+        radial-gradient(ellipse at top right, rgba(255, 95, 160, .30), transparent 55%),
+        linear-gradient(160deg, #200d1e 0%, #120812 100%);
+      box-shadow: var(--shadow-lg);
+    }
+    .hero-card { padding: clamp(28px, 6vw, 68px); }
+    .eyebrow {
+      margin: 0;
+      color: var(--accent-strong);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { line-height: 1.15; }
+    h1 { max-width: 760px; margin: 8px 0 18px; font-size: clamp(38px, 7vw, 68px); }
+    h2 { margin: 0 0 12px; font-size: 30px; }
+    h3 { margin: 0 0 8px; font-size: 18px; }
+    .lead { max-width: 680px; margin: 0; color: var(--text-muted); font-size: 19px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 45px;
+      padding: 10px 17px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-weight: 750;
+      text-decoration: none;
+      transition: transform .15s ease, background .15s ease;
+    }
+    .button:hover { transform: translateY(-1px); background: var(--bg-interactive-hover); }
+    .button-primary { border-color: rgba(255, 176, 112, .7); background: linear-gradient(135deg, #c64f4f, var(--accent)); color: #260b19; }
+    .button-primary:hover { background: linear-gradient(135deg, #ef6860, #ffae5a); }
+    main { padding-bottom: 76px; }
+    section { margin-top: 54px; }
+    .section-copy { margin: 0 0 22px; color: var(--text-muted); }
+    .steps, .grid { display: grid; gap: 16px; }
+    .steps { grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); counter-reset: step; }
+    .grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .card { padding: 22px; background: linear-gradient(160deg, var(--bg-elevated), #170b1e); box-shadow: none; }
+    .steps .card::before {
+      counter-increment: step;
+      content: counter(step);
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      margin-bottom: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #2a0c1a;
+      font-weight: 900;
+    }
+    .card p, li { color: var(--text-muted); }
+    code { padding: 2px 5px; border-radius: 4px; background: rgba(255, 128, 64, .14); color: var(--accent-strong); }
+    .notice { border-color: rgba(255, 176, 112, .54); background: linear-gradient(120deg, rgba(255,128,64,.15), rgba(255,95,160,.12)); }
+    .notice p { margin-bottom: 0; }
+    .screenshots { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; }
+    .shot {
+      min-height: 220px;
+      padding: 24px;
+      border: 1px dashed rgba(255, 176, 112, .65);
+      border-radius: 14px;
+      background: var(--bg-soft);
+      color: var(--text-dim);
+      text-align: center;
+      display: grid;
+      place-items: center;
+    }
+    .shot strong { color: var(--accent-strong); }
+    footer { padding: 28px 0 42px; color: var(--text-dim); font-size: 14px; text-align: center; }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap hero-card">
+      <p class="eyebrow">Chrome extension</p>
+      <h1>BETTER AutoLaTeX</h1>
+      <p class="lead">Render Google Docs as LaTeX PDFs, preserve rich text and tables, and keep your workflow inside the document.</p>
+      <div class="actions">
+        <!-- Replace YOUR_GITHUB_USERNAME with the repository owner before publishing. -->
+        <a class="button button-primary" href="https://github.com/YOUR_GITHUB_USERNAME/better-autolatex/archive/refs/heads/main.zip">Download extension (.zip)</a>
+        <a class="button" href="#install">Installation guide</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="install">
+      <p class="eyebrow">Get started</p>
+      <h2>Install in Chrome</h2>
+      <p class="section-copy">BETTER AutoLaTeX is installed as an unpacked Chrome extension. Keep the extracted folder somewhere you will not move or delete.</p>
+      <div class="steps">
+        <article class="card"><h3>Download and unzip</h3><p>Download the ZIP above, then extract it. Select the extracted folder that contains <code>manifest.json</code>.</p></article>
+        <article class="card"><h3>Open Extensions</h3><p>Navigate to <code>chrome://extensions</code> and turn on <strong>Developer mode</strong>.</p></article>
+        <article class="card"><h3>Load unpacked</h3><p>Choose <strong>Load unpacked</strong>, then select the extracted extension folder.</p></article>
+        <article class="card"><h3>Approve access</h3><p>Open the authorization link below once, approve the Google prompt, then return to your Google Doc.</p></article>
+      </div>
+    </section>
+
+    <section>
+      <article class="card notice">
+        <p class="eyebrow">Required once</p>
+        <h2>Approve the formatter</h2>
+        <p>The formatter needs your permission to read and apply document formatting. Open this link while signed into the Google account you use for Docs:</p>
+        <p><a class="button button-primary" href="https://script.google.com/macros/s/AKfycbwRXFpuAWmADQgR0fru4ny5jGrunQsDPgXNTHPpcuvzG7JEthSWD_qqydP0C3cqlonF/exec">Approve Google Apps Script access</a></p>
+      </article>
+    </section>
+
+    <section>
+      <p class="eyebrow">Use it</p>
+      <h2>Render from Google Docs</h2>
+      <div class="grid">
+        <article class="card"><h3>Open Better AutoLaTeX</h3><p>In a Google Doc, use the Better AutoLaTeX menu beside the standard Docs menus.</p></article>
+        <article class="card"><h3>Choose a destination</h3><p>Use <strong>Render to (Split Screen)</strong> or switch to <strong>New Tab</strong> before rendering.</p></article>
+        <article class="card"><h3>Render or download</h3><p>Choose Render PDF, Download PDF, or use <code>Ctrl + Shift + Z</code> and <code>Ctrl + Shift + X</code>.</p></article>
+      </div>
+    </section>
+
+    <section>
+      <p class="eyebrow">Screenshots</p>
+      <h2>Replace these placeholders before publishing</h2>
+      <div class="screenshots">
+        <div class="shot"><span><strong>Screenshot 1</strong><br>Chrome Extensions “Load unpacked” screen<br><code>assets/screenshots/install.png</code></span></div>
+        <div class="shot"><span><strong>Screenshot 2</strong><br>Better AutoLaTeX Google Docs menu<br><code>assets/screenshots/menu.png</code></span></div>
+        <div class="shot"><span><strong>Screenshot 3</strong><br>Rendered PDF split screen<br><code>assets/screenshots/rendered-pdf.png</code></span></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>BETTER AutoLaTeX &middot; Google Docs to LaTeX PDF rendering</footer>
+</body>
+</html>

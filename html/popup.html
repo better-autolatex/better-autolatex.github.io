@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BETTER AutoLaTeX</title>
+  <link rel="stylesheet" href="../styles/popup.css">
+</head>
+<body>
+  <div class="popup">
+    <header class="hero">
+      <div class="hero-faces">
+        <div class="hero-face hero-face-home">
+          <div class="hero-top">
+            <div>
+              <div class="eyebrow">Chrome Extension</div>
+              <h1>BETTER AutoLaTeX</h1>
+            </div>
+            <div class="hero-actions">
+              <label class="bal-switch" title="Enable / disable extension">
+                <input type="checkbox" id="enabledToggle" checked>
+                <span class="bal-switch-track">
+                  <span class="bal-switch-thumb"></span>
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-face hero-face-page">
+          <div class="hero-top">
+            <div>
+              <div class="eyebrow" id="pageEyebrow">Configuration</div>
+              <h1 id="pageHeading">Settings</h1>
+            </div>
+            <button id="backBtn" class="hero-back-btn">&#8592; Back</button>
+          </div>
+        </div>
+      </div>
+      <p id="statusText" class="hero-status">Open a Google Doc to get started.</p>
+    </header>
+
+    <section class="actions" id="mainActions">
+      <button class="btn btn-primary btn-wide" id="renderBtn">
+        <span>Render PDF</span>
+        <span class="btn-shortcut">Ctrl+Shift+Z</span>
+      </button>
+
+      <button class="btn btn-secondary btn-wide" id="downloadBtn">
+        <span>Download PDF</span>
+        <span class="btn-shortcut">Ctrl+Shift+X</span>
+      </button>
+
+      <button class="btn btn-secondary btn-wide" id="format-now-btn">
+        <span>Format Document</span>
+        <span class="btn-shortcut">Ctrl+Shift+F</span>
+      </button>
+
+      <div class="render-mode-row">
+        <span class="render-mode-label">Render to</span>
+        <div class="render-mode-btns">
+          <button class="btn render-mode-opt" id="renderModeSplit" title="Show PDF in split view">Split View</button>
+          <button class="btn render-mode-opt" id="renderModeTab" title="Open PDF in a new tab">New Tab</button>
+        </div>
+      </div>
+
+      <div class="auto-format-row" id="autoFormatRow">
+        <div class="auto-format-info">
+          <span class="auto-format-label">Auto-format</span>
+          <span class="auto-format-hint">Ctrl+Shift+F x2 to toggle</span>
+        </div>
+        <label class="bal-switch" title="Automatically apply syntax highlighting after each pause in typing">
+          <input type="checkbox" id="autoFormatToggle">
+          <span class="bal-switch-track">
+            <span class="bal-switch-thumb"></span>
+          </span>
+        </label>
+      </div>
+
+      <div class="utility-row">
+        <button class="btn btn-secondary" id="settingsBtn">
+          <span>Settings</span>
+        </button>
+        <button class="btn btn-secondary" id="preambleBtn">
+          <span>Edit Preamble</span>
+        </button>
+        <button class="btn btn-secondary" id="helpBtn">
+          <span>Help</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="pageView" class="panel hidden">
+      <div id="pageContent" class="page-content"></div>
+    </section>
+  </div>
+
+  <script type="module" src="../scripts/popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>BETTER AutoLaTeX — Edit Preamble</title>
+  <link rel="stylesheet" href="../styles/page.css">
+</head>
+<body>
+
+<div class="hero">
+  <h1>Edit Preamble</h1>
+  <p>
+    <span id="docTypeLabel">Loading…</span> &nbsp;·&nbsp;
+    <span id="customBadge" class="badge"></span>
+  </p>
+</div>
+
+<div class="page">
+
+  <div class="note">
+    Edit everything that goes before <code>\begin{document}</code>.
+    <code>\newcommand{\documentName}{…}</code> and the Lua image decoder are
+    injected automatically — no need to include them yourself.
+  </div>
+
+  <div class="card">
+    <div class="field">
+      <textarea id="preamble" class="preamble" spellcheck="false"
+                placeholder="Loading preamble…"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="saveBtn">Save</button>
+      <button class="btn btn-secondary" id="setDefaultBtn">Set Default</button>
+    </div>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Style files</div>
+    <h2>Custom <code>.sty</code> packages</h2>
+    <p class="section-intro">Upload any <code>.sty</code> files your preamble references. They are shipped alongside the .tex source on every render.</p>
+
+    <div id="styList" class="sty-list">
+      <span class="sty-empty">No .sty files uploaded.</span>
+    </div>
+    <label class="sty-upload-label">
+      ＋ Upload .sty file
+      <input type="file" id="styUpload" accept=".sty">
+    </label>
+    <div id="styStatus" class="status"></div>
+  </div>
+
+</div>
+
+<script type="module" src="../scripts/preamble.js"></script>
+</body>
+</html>
