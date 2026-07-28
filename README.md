@@ -4,7 +4,7 @@ Render Google Docs as LaTeX PDFs from a Chrome extension. It supports split-scre
 
 > Before publishing, replace `YOUR_GITHUB_USERNAME` in the download URL below with the GitHub account or organization that owns this repository.
 
-[Download the extension ZIP](https://github.com/YOUR_GITHUB_USERNAME/better-autolatex/archive/refs/heads/main.zip)
+[Download the extension ZIP](https://github.com/neevshaw/better-autolatex/archive/refs/heads/main.zip)
 
 ## Install
 
