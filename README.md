@@ -2,7 +2,7 @@
 
 Render Google Docs as LaTeX PDFs from a Chrome extension. It supports split-screen or new-tab rendering, PDF downloads, document settings and preambles, rich text, and Google Docs tables.
 
-<a href="https://github.com/better-autolatex/better-autolatex.github.io/archive/refs/heads/main.zip" target="_blank" rel="noopener noreferrer">Download the extension ZIP</a>
+<a href="https://better-autolatex.github.io/better-autolatex.zip" target="_blank" rel="noopener noreferrer">Download the extension ZIP</a>
 
 ## Install
 
