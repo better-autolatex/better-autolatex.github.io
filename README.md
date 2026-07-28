@@ -28,7 +28,9 @@ Open <a href="https://script.google.com/macros/s/AKfycbwRXFpuAWmADQgR0fru4ny5jGr
 
 ### 4. Activate the extension
 
-In Chrome&apos;s top toolbar, click the **BETTER AutoLaTeX** extension icon. Its popup opens. Make sure the enable switch is turned on, then close the popup.
+In Chrome&apos;s top toolbar, click the **Extensions** puzzle icon. Find **BETTER AutoLaTeX** and click its **pin** icon so it stays visible in the toolbar. Then click the new BETTER AutoLaTeX toolbar icon. Its popup opens; make sure the enable switch is turned on, then close the popup.
+
+<img src="assets/screenshots/Step%204%20-%20pin%20extension%20in%20top%20bar.png" width="75%" alt="Chrome Extensions menu showing the puzzle icon and BETTER AutoLaTeX pin icon highlighted">
 
 ### 5. Start using BETTER AutoLaTeX
 
