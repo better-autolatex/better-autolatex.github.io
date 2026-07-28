@@ -6,40 +6,36 @@ Render Google Docs as LaTeX PDFs from a Chrome extension. It supports split-scre
 
 ## Install
 
-1. Download and extract the ZIP. Keep the extracted folder somewhere permanent.
-2. Open `chrome://extensions` in Chrome.
-3. Turn on **Developer mode**.
-4. Click **Load unpacked**.
-5. Select the extracted folder that contains `manifest.json`.
-6. Open the formatter deployment once and approve Google access: <a href="https://script.google.com/macros/s/AKfycbwRXFpuAWmADQgR0fru4ny5jGrunQsDPgXNTHPpcuvzG7JEthSWD_qqydP0C3cqlonF/exec" target="_blank" rel="noopener noreferrer">Approve Apps Script access</a>.
-7. Refresh any open Google Docs tab.
+### 1. Download and extract the extension
 
-## Use
+Download the ZIP above. In your Downloads folder, right-click `better-autolatex.zip`, click **Extract All...**, and finish extracting it somewhere you plan to keep it.
 
-Open a Google Doc and choose **Better AutoLaTeX** from the Docs menu bar.
+![Windows File Explorer with better-autolatex.zip selected and Extract All highlighted](assets/screenshots/Step%201%20-%20download%20and%20unzip.png)
 
-- **Render PDF** renders to the selected destination.
-- **Download PDF** renders and downloads a PDF.
-- **Render to (Split Screen/New Tab)** switches the destination.
-- **Auto-format** toggles automatic LaTeX formatting.
-- **Settings** and **Edit Preamble** open in the extension popup.
+### 2. Load the extension in Chrome
 
-Keyboard shortcuts:
+Open `chrome://extensions` in Chrome. Turn on the **Developer mode** switch in the upper-right corner. Click **Load unpacked**, choose the extracted **better-autolatex** folder, then click **Select Folder**.
 
-- `Ctrl + Shift + Z` — Render PDF
-- `Ctrl + Shift + X` — Download PDF
+![Chrome Extensions showing Developer mode, Load unpacked, and the folder selection dialog](assets/screenshots/Step%202%20-%20developer%20mode%20and%20load%20unpacked.png)
+
+### 3. Approve the Google Docs formatter
+
+Open <a href="https://script.google.com/macros/s/AKfycbwRXFpuAWmADQgR0fru4ny5jGrunQsDPgXNTHPpcuvzG7JEthSWD_qqydP0C3cqlonF/exec" target="_blank" rel="noopener noreferrer">Approve Apps Script access</a> while signed into the Google account you use for Docs. If Google shows the warning screen, click **Advanced**, then **Go to Untitled project (unsafe)**. Next, click **Review permissions** and complete the permission prompt.
+
+![Google Apps Script authorization screen with Advanced, Go to Untitled project unsafe, and Review permissions highlighted](assets/screenshots/Step%203%20-%20approve%20apps%20script%20formatter.png)
+
+> **About the Google warning:** Google shows it because this Apps Script has not completed Google&apos;s public verification process. That does not mean your computer found malware. BETTER AutoLaTeX uses the script only as a Google Docs formatter - it is not an installer or separate executable. Continue only if you trust the developer/account shown and intend to use this project.
+
+### 4. Start using BETTER AutoLaTeX
+
+Refresh any open Google Docs tab. Click **Better AutoLaTeX** in the Docs menu bar, choose **Render to (Split Screen)** or **Render to (New Tab)**, then click **Render PDF** or **Download PDF**.
+
+## Keyboard shortcuts
+
+- `Ctrl + Shift + Z` - Render PDF
+- `Ctrl + Shift + X` - Download PDF
 
 On macOS, use `Command` in place of `Ctrl`.
-
-## Screenshots
-
-Add the following images before publishing, then replace these placeholders with regular Markdown images.
-
-<!-- TODO: ![Load unpacked in chrome://extensions](assets/screenshots/install.png) -->
-
-<!-- TODO: ![Better AutoLaTeX menu in Google Docs](assets/screenshots/menu.png) -->
-
-<!-- TODO: ![Rendered PDF in split screen](assets/screenshots/rendered-pdf.png) -->
 
 ## Development
 
