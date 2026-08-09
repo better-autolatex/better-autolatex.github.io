@@ -8,13 +8,24 @@ const pageView = $('pageView');
 const pageContent = $('pageContent');
 const statusText = $('statusText');
 const backBtn = $('backBtn');
+const noDocStatus = 'Open a Google Doc to get started.';
 
 let activeView = 'home';
 let saveTimer = null;
 
 function setStatus(text) {
-  statusText.textContent = text;
+  if (text === noDocStatus) {
+    statusText.innerHTML = '<a href="https://docs.new/" data-open-google-doc>Open a Google Doc to get started.</a>';
+  } else {
+    statusText.textContent = text;
+  }
 }
+
+statusText.addEventListener('click', (event) => {
+  if (!event.target.closest('[data-open-google-doc]')) return;
+  event.preventDefault();
+  chrome.tabs.create({ url: 'https://docs.new/' });
+});
 
 let viewTransitioning = false;
 let homeTransitionTimer = null;
@@ -150,16 +161,29 @@ function callRuntime(message) {
 // ── Enable / disable switch ────────────────────────────────────────────────
 
 const enabledToggle = $('enabledToggle');
+const enabledStatus = $('enabledStatus');
+
+function applyEnabledState(on) {
+  if (enabledToggle) enabledToggle.checked = on;
+  if (enabledStatus) enabledStatus.textContent = on ? 'Extension Enabled' : 'Extension Disabled';
+}
 
 async function loadEnabledState() {
   const res = await chrome.storage.local.get(['setting_enabled']);
   const on = res['setting_enabled'] !== false;
-  if (enabledToggle) enabledToggle.checked = on;
+  applyEnabledState(on);
 }
 
 enabledToggle && enabledToggle.addEventListener('change', async () => {
   const nowOn = enabledToggle.checked;
   await chrome.storage.local.set({ setting_enabled: nowOn });
+  applyEnabledState(nowOn);
+});
+
+chrome.storage.onChanged.addListener((changes) => {
+  if ('setting_enabled' in changes) {
+    applyEnabledState(changes['setting_enabled'].newValue !== false);
+  }
 });
 
 loadEnabledState();

@@ -17,12 +17,15 @@
               <h1>BETTER AutoLaTeX</h1>
             </div>
             <div class="hero-actions">
-              <label class="bal-switch" title="Enable / disable extension">
-                <input type="checkbox" id="enabledToggle" checked>
-                <span class="bal-switch-track">
-                  <span class="bal-switch-thumb"></span>
-                </span>
-              </label>
+              <div class="hero-enable-control">
+                <label class="bal-switch" title="Enable / disable extension">
+                  <input type="checkbox" id="enabledToggle" checked>
+                  <span class="bal-switch-track">
+                    <span class="bal-switch-thumb"></span>
+                  </span>
+                </label>
+                <span id="enabledStatus" class="enabled-status">Extension Enabled</span>
+              </div>
             </div>
           </div>
         </div>
@@ -37,7 +40,7 @@
           </div>
         </div>
       </div>
-      <p id="statusText" class="hero-status">Open a Google Doc to get started.</p>
+      <p id="statusText" class="hero-status"><a href="https://docs.new/" data-open-google-doc>Open a Google Doc to get started.</a></p>
     </header>
 
     <section class="actions" id="mainActions">
