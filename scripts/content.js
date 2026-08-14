@@ -1342,18 +1342,11 @@ bootstrap();
       return colorToHex(cssProperty(style, 'color') || el.getAttribute('color'));
     }
 
-    // Preserve document colours without colouring LaTex syntax or inline math.
-    // xcolor is already part of both shipped default preambles.
+    // Google Docs text colours are intentionally not represented in the
+    // generated LaTeX.  This keeps source text neutral and lets the formatter
+    // reserve colour for LaTeX syntax highlighting.
     function formatText(text, fmt) {
       let result = text;
-      if (fmt.color && fmt.color !== '000000') {
-        result = result.split(/(\$\$[\s\S]*?\$\$|\$[^$]*?\$|\\\\|\\[a-zA-Z]+\*?(?:\[[^\]]*\])?(?:\{[^{}]*\})*)/g)
-          .map(part => {
-            if (!part || !part.trim() || part.startsWith('$') || part.startsWith('\\')) return part;
-            return '\\textcolor[HTML]{' + fmt.color + '}{' + part + '}';
-          })
-          .join('');
-      }
       if (fmt.italic)    result = '\\textit{' + result + '}';
       if (fmt.bold)      result = '\\textbf{' + result + '}';
       if (fmt.underline) result = '\\underline{' + result + '}';
