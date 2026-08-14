@@ -66,14 +66,14 @@ async function callAppsScript(url, payload) {
   if (!response.ok) {
     throw new Error(
       'Apps Script formatter returned status ' + response.status +
-      ' from ' + response.url + '.\n' + rawText.slice(0, 500)
+      ' from ' + response.url + '.\n\nFull response body:\n' + rawText
     );
   }
 
   let data;
   try {
     data = JSON.parse(rawText);
-  } catch (_) {
+  } catch (parseError) {
     // Non-JSON on a 200 usually means Google served an HTML page instead of
     // the script's output — most commonly its auth/consent page when the
     // caller hasn't authorized the deployment's OAuth scopes yet ("Execute
@@ -81,10 +81,17 @@ async function callAppsScript(url, payload) {
     throw new Error(
       'Apps Script formatter returned a non-JSON response (likely an auth/consent ' +
       'page — open the /exec URL directly in a browser tab to authorize it). ' +
-      'First 200 chars: ' + rawText.slice(0, 200)
+      'JSON parse error: ' + (parseError.message || parseError) +
+      '\n\nFull response body:\n' + rawText
     );
   }
-  if (data.ok === false) throw new Error(data.error || 'Apps Script formatter error.');
+  if (data.ok === false) {
+    console.error('[BAL formatter] Apps Script reported a structured error:', data);
+    const details = data.details
+      ? '\n\nFull Apps Script diagnostic:\n' + JSON.stringify(data.details, null, 2)
+      : '';
+    throw new Error((data.error || 'Apps Script formatter error.') + details);
+  }
   return data;
 }
 

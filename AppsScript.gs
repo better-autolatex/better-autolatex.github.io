@@ -72,7 +72,21 @@ function doPost(e) {
       default:      return jsonResponse({ ok: false, error: 'Unknown op: ' + body.op });
     }
   } catch (err) {
-    return jsonResponse({ ok: false, error: String(err && err.message || err) });
+    // Keep every diagnostic Apps Script exposes. Workspace policy failures are
+    // often reported only as "Action not allowed", but this makes the
+    // operation, error type, string form, and stack available to the extension
+    // rather than reducing them to one short message.
+    return jsonResponse({
+      ok: false,
+      error: String(err && err.message || err),
+      details: {
+        operation: body.op || '(missing)',
+        name: String(err && err.name || ''),
+        message: String(err && err.message || err),
+        string: String(err),
+        stack: String(err && err.stack || '')
+      }
+    });
   }
 }
 

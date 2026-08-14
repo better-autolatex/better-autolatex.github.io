@@ -14,7 +14,7 @@ export const TEXLIVE_ENDPOINT = 'https://texlive.net/cgi-bin/latexcgi';
 // storage override anymore (one used to exist in Settings; a stale value
 // left there silently shadowed this constant and caused 404s, since
 // background.js was calling the old override instead of this URL).
-export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwRXFpuAWmADQgR0fru4ny5jGrunQsDPgXNTHPpcuvzG7JEthSWD_qqydP0C3cqlonF/exec';
+export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5jMbf7fJPBY59YsVOyCyUnqL2OpgjkheVPkHIQeBrbdPGAtNcVZ8WidbEfVaKr5QS/exec';
 
 export const SK = {
   DOC_TYPE:         'setting_docType',
