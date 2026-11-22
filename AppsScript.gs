@@ -1,41 +1,15 @@
-// Standalone Apps Script web app — the OAuth-free replacement for the direct
-// docs.googleapis.com calls the extension used to make with chrome.identity.
-//
-// Deploy as: Deploy > New deployment > type "Web app".
+// Formatter backend for BETTER AutoLaTeX, deployed as a standalone web app:
 //   Execute as:      User accessing the web app
 //   Who has access:  Anyone
-// One deployment, one /exec URL, shared by every user — baked into the
-// extension as the default setting_appsScriptUrl (see shared.js), so no
-// per-user setup is required. Each caller authorizes the script's OAuth
-// scopes under their OWN account the first time they use it (a real Google
-// consent screen the extension cannot skip), which is what lets
-// DocumentApp.openById below act on THAT caller's documents rather than the
-// deployer's. See CLAUDE.md for what was tried before landing here.
+// Each user authorizes it once for their own account; the extension calls
+// its /exec URL (APPS_SCRIPT_URL in scripts/shared.js).
 //
-// This project is standalone (not container-bound) — DocumentApp.getActiveDocument()
-// is not available to a web app in any case (bound or not), so openById(docId)
-// is required either way.
-//
-// ── Concurrency model ────────────────────────────────────────────────────
-// The REST API's writeControl.requiredRevisionId has no DocumentApp
-// equivalent — there is no way to reject a whole batch atomically if the
-// document changed since it was read. Instead, every "apply" op carries the
-// paragraph text the extension observed at read time (expectedText). Before
-// writing, this script re-fetches that paragraph BY INDEX and skips the op
-// (reporting it back) if the live text no longer matches. That is the
-// re-resolution step replacing optimistic-concurrency: a stale op is
-// dropped instead of being applied to the wrong range.
+// DocumentApp has no revision-based write control, so each apply op
+// carries the paragraph text seen at read time (expectedText) and is
+// skipped if the live paragraph no longer matches.
 
-// Handles GET requests to /exec. The extension never sends one of these —
-// it always POSTs — but Google's own OAuth consent flow does: the first
-// time a user authorizes this deployment (under "Execute as: User accessing
-// the web app"), the consent screen redirects the browser to a plain GET on
-// this exact URL to complete the flow. Without a doGet(), that lands on
-// Apps Script's default "Script function not found: doGet" error page,
-// which reads as a failure even though authorization itself succeeded.
-// Returning a friendly HTML page here just replaces that error with a
-// clear "you're done" message — it has no effect on the extension's own
-// POST-based read/apply calls.
+// The extension only POSTs. GET is hit once by Google's consent redirect,
+// so show a friendly page instead of "Script function not found: doGet".
 function doGet(e) {
   return HtmlService.createHtmlOutput(
     '<!doctype html><html><head><meta charset="utf-8">' +
@@ -72,10 +46,7 @@ function doPost(e) {
       default:      return jsonResponse({ ok: false, error: 'Unknown op: ' + body.op });
     }
   } catch (err) {
-    // Keep every diagnostic Apps Script exposes. Workspace policy failures are
-    // often reported only as "Action not allowed", but this makes the
-    // operation, error type, string form, and stack available to the extension
-    // rather than reducing them to one short message.
+    // Return full diagnostics; Workspace policy errors are often vague.
     return jsonResponse({
       ok: false,
       error: String(err && err.message || err),
@@ -98,13 +69,8 @@ function jsonResponse(obj) {
 
 // ── read ─────────────────────────────────────────────────────────────────
 //
-// Returns every paragraph in document order, addressed by INDEX into this
-// array (not by any Docs-API character offset — those don't exist here).
-// Mirrors the REST-API extractParagraphs() shape in formatter.js:
-//   text            full paragraph text (no trailing newline)
-//   fingerprint     text + per-run font, so the extension's LCS delta and
-//                   manual-font-override detection keep working unchanged
-//   curIndentPt     current left indent in points
+// Returns every paragraph in order, addressed by index:
+//   text, fingerprint (text + per-run font), curIndentPt
 function handleRead(body) {
   var doc = DocumentApp.openById(body.docId);
   var body_ = doc.getBody();
@@ -127,11 +93,7 @@ function handleRead(body) {
   return { ok: true, paragraphs: paragraphs };
 }
 
-// Fingerprint = text + font-per-run, matching paragraphFingerprint() in
-// formatter.js closely enough that the same LCS diff / override detection
-// applies. DocumentApp doesn't expose "runs" directly, so we walk the
-// paragraph's child Text elements (a paragraph normally has exactly one,
-// but manual formatting can split it into several).
+// Fingerprint = text + font per Text element, matching formatter.js.
 function paragraphFingerprint(para) {
   var parts = [];
   var n = para.getNumChildren();
@@ -141,9 +103,7 @@ function paragraphFingerprint(para) {
     var t = child.asText();
     var content = t.getText();
     var font = '';
-    // A run can carry mixed fonts across its characters; sample the first
-    // character the same way the fingerprint only needs to detect *that*
-    // an override exists, not describe it exhaustively.
+    // Sampling the first character is enough to detect a font override.
     if (content.length > 0) {
       font = t.getFontFamily(0) || '';
     }
@@ -152,11 +112,8 @@ function paragraphFingerprint(para) {
   return parts.join('\x01');
 }
 
-// Return every ordinary paragraph in document order, including paragraphs
-// inside table cells.  The original implementation only walked Body's direct
-// children, which meant table text was invisible to both manual formatting
-// and auto-format.  The same traversal is used for read and apply, so the
-// positional paraIndex remains stable across the round trip.
+// Every paragraph in document order, including ones inside table cells.
+// read and apply share this so paraIndex stays stable.
 function collectParagraphs(container) {
   var result = [];
   var n = container.getNumChildren();
@@ -183,21 +140,13 @@ function collectParagraphs(container) {
 // body.ops: array of
 //   { paraIndex, expectedText, lineSpacing, fontFamily, fontSize,
 //     indentPt, spans: [{start, endInclusive, color}] }
-// paraIndex is positional into the SAME child-paragraph enumeration as
-// handleRead. start/endInclusive are 0-based offsets WITHIN the paragraph
-// text (DocumentApp ranges are inclusive on both ends — no +1/-1 needed
-// here; formatter.js does that conversion before sending).
-//
-// Any op whose live paragraph text no longer matches expectedText is
-// skipped and reported in `skipped` rather than applied — this is the
-// re-resolution replacing requiredRevisionId.
+// paraIndex uses the same enumeration as handleRead. Offsets are 0-based
+// within the paragraph and inclusive. Ops whose text no longer matches
+// expectedText are reported in `skipped`.
 function handleApply(body) {
   var doc = DocumentApp.openById(body.docId);
   var body_ = doc.getBody();
 
-  // Build the same positional paragraph index handleRead used, once, so
-  // random-access by paraIndex is a plain array lookup below. This includes
-  // paragraphs nested inside table cells.
   var paragraphs = collectParagraphs(body_);
 
   var applied = [];

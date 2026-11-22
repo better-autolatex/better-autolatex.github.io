@@ -1,6 +1,6 @@
 (function(){
 
-// ── Toast — reuses the shared .bal-toast element from content.js ──────────────
+// ── Toast (reuses the .bal-toast element from content.js) ───────────────────
 let _toastTimer = null;
 function toast(msg, kind) {
   let t = document.getElementById('bal-toast');
@@ -16,12 +16,8 @@ function toast(msg, kind) {
   _toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
 }
 
-// ── Apps Script backend (replaces the old direct docs.googleapis.com calls) ──
-//
-// Content scripts can't make this cross-origin fetch themselves (Chrome 85+
-// removed the CORS bypass for content scripts, and script.google.com won't
-// echo an Origin of https://docs.google.com back), so the request is relayed
-// through the background service worker via chrome.runtime.sendMessage.
+// ── Apps Script backend ─────────────────────────────────────────────────────
+// Relayed through the background worker, which isn't subject to CORS.
 function callBackground(msg) {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(msg, (res) => {
@@ -53,25 +49,11 @@ function getDocId() {
   return m ? m[1] : null;
 }
 
-// ── Highlighting logic (mirrors Apps Script/Docs-API patterns exactly) ───────
+// ── Highlighting ────────────────────────────────────────────────────────────
 //
-// Unchanged from the Docs-API version: this operates entirely in
-// paragraph-relative offsets and never touches document-level addressing,
-// so the port to the Apps Script backend didn't need to change it.
-//
-// Ordering:
-//   1. Reset whole paragraph to clrDefault
-//   2. LaTeX commands  \cmd  or  \cmd*
-//   3. Env names inside \begin{…} / \end{…}
-//   4. Math content  $…$  and  $$…$$
-//   5. Math commands inside math spans
-//   6. Braces  { }  → clrDefault (reset)
-//   7. Comments  %…  to end of line
-//
-// Spans are collected as {start, endInclusive, color} — DocumentApp's
-// setForegroundColor(startOffset, endOffsetInclusive, color) takes an
-// INCLUSIVE end offset, unlike the REST API's exclusive endIndex, so no
-// +1 conversion happens here (contrast with the old REST-API version).
+// Order: reset paragraph to clrDefault, then commands, env names, math
+// content, math commands, braces (reset), comments. Spans use an
+// inclusive end offset to match DocumentApp.setForegroundColor.
 function buildHighlightSpans(text, clr) {
   const spans = [];
   const len = text.length;
@@ -124,15 +106,9 @@ function applyPattern(text, regex, cb) {
 
 // ── Environment indentation ───────────────────────────────────────────────────
 //
-// Unchanged in spirit from the Docs-API version — see that history for the
-// full rationale. Depth is a running count over the WHOLE document in order:
-//   +1 per \begin{…}, −1 per \end{…} (clamped at 0).
-// An \end line sits flush with the outer level; a \begin line does too;
-// only the body between them is indented. Because indent depends on
-// preceding paragraphs, this pass always runs over every paragraph, not
-// just the ones the LCS delta flagged — a single new \begin{env} must be
-// able to re-indent everything below it. Self-limiting: emits an op only
-// where the needed indent differs from the paragraph's current indent.
+// Depth is a running count of \begin/\end over the whole document, so
+// this pass always covers every paragraph. Only the body between
+// \begin and \end is indented; ops are emitted only where indent changes.
 const INDENT_STEP_PT = 36; // 0.5 in × 72 PT/in
 const BEGIN_RE = /\\begin\s*\{[^}]*\}/g;
 const END_RE   = /\\end\s*\{[^}]*\}/g;
@@ -163,15 +139,9 @@ function computeIndentChanges(allParas) {
   return changes;
 }
 
-// ── Fingerprint / diff (unchanged from the Docs-API version) ─────────────────
-//
-// The Apps Script backend computes and returns the fingerprint itself
-// (see AppsScript.gs paragraphFingerprint) in the same "font\x00text\x01…"
-// shape, so the LCS diff below needs no changes.
+// ── Fingerprint / diff ──────────────────────────────────────────────────────
 
-// Build the ops for a set of paragraphs. `allParas` (the full document) is
-// needed too, because indent is computed over the whole document regardless
-// of which paragraphs are actually being (re)formatted.
+// `allParas` is needed because indent is computed over the whole document.
 function buildOpsForParas(parasToFormat, allParas, settings) {
   const clr = {
     def:  settings.clrDefault,
@@ -208,10 +178,8 @@ function buildOpsForParas(parasToFormat, allParas, settings) {
   return ops;
 }
 
-// ── LCS-based paragraph diff (unchanged from the Docs-API version) ───────────
-//
-// Returns the indices (into newTexts) of paragraphs that are new or changed
-// relative to oldTexts — i.e. those NOT in the Longest Common Subsequence.
+// ── LCS-based paragraph diff ────────────────────────────────────────────────
+// Returns indices in newTexts of paragraphs not in the LCS (new or changed).
 function getChangedNewIndices(oldTexts, newTexts) {
   const n = oldTexts.length, m = newTexts.length;
   const dp = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
@@ -243,9 +211,7 @@ let _paraSnapshot = null;
 
 window.autoLatexFormatBusy = false;
 
-// Attach a stable positional index to each paragraph returned by `read` —
-// this IS the addressing scheme (see AppsScript.gs: paraIndex is a plain
-// array index into the same child-paragraph enumeration on both ends).
+// paraIndex matches the paragraph enumeration order in AppsScript.gs.
 function withIndex(paragraphs) {
   return paragraphs.map((p, index) => ({ ...p, index }));
 }
@@ -269,8 +235,7 @@ async function formatNow() {
 
     const applyRes = await applyOps(docId, ops);
     if (applyRes.skipped && applyRes.skipped.length) {
-      // Paragraphs edited between read and apply — harmless, they'll be
-      // re-read and retried on the next format pass.
+      // Paragraphs edited between read and apply get retried next pass.
       _paraSnapshot = null;
     }
     toast('Formatting applied. ✓', 'ok');
@@ -312,16 +277,11 @@ async function formatDelta() {
 
     const applyRes = await applyOps(docId, ops);
 
-    // Any skipped op means its paragraph's text moved between our read and
-    // this apply (the re-resolution check in AppsScript.gs failed). That
-    // paragraph is left out of the new baseline so the next poll cycle
-    // re-reads its fresh text and retries — mirrors the old revisionId
-    // benign-retry path, just decided per-paragraph instead of per-batch.
+    // A skipped op means the paragraph changed between read and apply; drop it
+    // from the baseline so it's re-read and retried next cycle.
     if (applyRes.skipped && applyRes.skipped.length) {
       const skippedSet = new Set(applyRes.skipped);
       _paraSnapshot = newFingerprints.map((fp, i) => skippedSet.has(i) ? null : fp);
-      // A null baseline entry never matches anything in the next diff,
-      // which forces that paragraph to be re-formatted next cycle.
     } else {
       _paraSnapshot = newFingerprints;
     }

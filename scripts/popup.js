@@ -200,11 +200,9 @@ function applyAutoFormatUI(on) {
 
 async function loadAutoFormatState() {
   const res = await chrome.storage.local.get(['setting_autoFormat']);
-  // Suppress the switch/row transitions for the initial state so the toggle
-  // doesn't visibly animate from off→on when the popup first appears.
+  // Skip the toggle animation for the initial state.
   if (autoFormatRow) autoFormatRow.classList.add('no-anim');
   applyAutoFormatUI(res['setting_autoFormat'] === true);
-  // Re-enable transitions after the first paint so later toggles still animate.
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       if (autoFormatRow) autoFormatRow.classList.remove('no-anim');
@@ -260,11 +258,8 @@ renderModeTab   && renderModeTab.addEventListener('click',   () => setRenderMode
 
 loadRenderMode();
 
-// Keep the popup from closing when the action it triggered shifts focus to the
-// Doc tab (e.g. render reflowing the page for split view). Chrome auto-closes
-// an action popup the moment focus leaves it; re-asserting focus on our own
-// window right after dispatching keeps it on screen, matching how download
-// (which causes no focus shift) already behaves.
+// Chrome closes the popup when focus moves to the Doc tab (e.g. split view
+// reflow), so re-focus the popup after dispatching.
 function keepPopupFocused() {
   try { window.focus(); } catch (_) {}
   requestAnimationFrame(() => { try { window.focus(); } catch (_) {} });
@@ -305,10 +300,8 @@ async function doDownload() {
 }
 
 // ── Format Document (single tap) / Auto-format toggle (double tap) ─────────
-//
-// Mirrors content.js handleFormatKey: Ctrl+Shift+F once formats the document;
-// twice within 400 ms toggles auto-format mode. The button click maps to the
-// single-tap "format now" action.
+// Same as content.js handleFormatKey: one tap formats, two within 400 ms
+// toggles auto-format.
 let fTapTimer = null;
 
 async function doFormatNow() {
@@ -367,12 +360,7 @@ $('renderBtn').addEventListener('click', doRender);
 $('downloadBtn').addEventListener('click', doDownload);
 
 // ── Keyboard shortcuts while the popup is focused ──────────────────────────
-//
-// chrome.commands shortcuts (Ctrl+Shift+Z / Ctrl+Shift+X / Ctrl+Shift+F) fire
-// at the browser level and route to the Docs tab — but they're swallowed when
-// the popup itself holds focus (the popup is a separate document, not the Docs
-// tab). Mirror the same chords here so render/download/format work straight
-// from the popup.
+// chrome.commands are swallowed while the popup has focus, so mirror them.
 document.addEventListener('keydown', (e) => {
   if (!(e.ctrlKey || e.metaKey) || !e.shiftKey) return;
   const key = e.key.toLowerCase();
@@ -467,8 +455,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   try {
     const pending = await chrome.storage.session.get(['bal_openPopupView']);
     const route = pending.bal_openPopupView;
-    // Accept the old string shape once so extension reloads do not leave a
-    // stale pending route behind during development.
+    // Also accept the old string-shaped route.
     const view = typeof route === 'string' ? route : route?.view;
     if (view === 'settings' || view === 'preamble') {
       await navigatePopupView(view);

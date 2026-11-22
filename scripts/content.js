@@ -1,14 +1,6 @@
-// Content script — runs in every Google Docs document tab.
-//
-// This version keeps the hotkeys and rendering workflow, but moves the UI
-// out of the Google Docs top bar and into the extension toolbar popup.
-// Rendering now opens a split view inside the Doc tab instead of launching a separate browser tab.
-//
-// Main jobs here:
-//   1) extract the Google Doc text/images as reliably as possible
-//   2) render PDFs via the background service worker
-//   3) inject a split-screen PDF preview panel on the right side of Docs
-//   4) respond to hotkeys and popup messages
+// Content script for Google Docs tabs: extracts the doc text/images,
+// renders via the background worker, shows the split-view PDF panel,
+// and handles hotkeys and popup messages.
 
 (() => {
   if (window.__BETTER_AUTOLATEX_LOADED__) return;
@@ -29,12 +21,8 @@
   let _topBarMenuCloseTimer = null;
   let _pendingPopupView = null;
 
-  // The formatter backend is now an Apps Script web app round trip (cold
-  // starts + a 302 redirect), not a direct docs.googleapis.com call — much
-  // higher latency than this poll was originally tuned for. The single-flight
-  // guard (autoLatexFormatBusy + _autoFormatDirty) already prevents overlap
-  // regardless of interval, so 2s is safe, but each tick that lands while a
-  // request is in flight just sets the dirty flag and waits.
+  // Single-flight guard (autoLatexFormatBusy + _autoFormatDirty) prevents
+  // overlapping backend calls, so a short interval is safe.
   const AUTO_FORMAT_POLL_MS = 2000;
 
   // Load initial enabled state, render mode, and auto-format state
@@ -43,8 +31,7 @@
     renderMode        = res['setting_renderMode'] || 'split';
     autoFormatEnabled = res['setting_autoFormat'] === true;
     _savedPanelWidth  = res['setting_splitPanelWidth'] || 0;
-    // If auto-format was already on before this page loaded, start the poll timer now.
-    // (storage.onChanged only fires on *changes*, so it would never start otherwise.)
+    // storage.onChanged only fires on changes, so start the poll here too.
     if (autoFormatEnabled && !_autoFormatTimer) {
       _autoFormatTimer = setInterval(scheduleAutoFormat, AUTO_FORMAT_POLL_MS);
     }
@@ -79,8 +66,7 @@
         clearInterval(_autoFormatTimer);
         _autoFormatTimer = null;
       } else if (!wasEnabled) {
-        // Just turned on: run one silent initial format to establish the baseline,
-        // then start the poll timer that drives subsequent delta formats.
+        // Format once to set the baseline, then start polling for deltas.
         setTimeout(() => {
           if (autoFormatEnabled && typeof window.autoLatexFormatDelta === 'function') {
             window.autoLatexFormatDelta();
@@ -104,22 +90,13 @@
 
   // ── Split layout ────────────────────────────────────────────────────────────
   //
-  // Override document.documentElement.clientWidth to return the available doc
-  // width (total - panel), then dispatch a resize event. Google Docs reads
-  // clientWidth in its resize handler to lay out the toolbar.
-  // The override is left in place between calls (configurable:true means the
-  // next call simply replaces it). On close, delete the own property so
-  // Element.prototype's getter takes over and returns the real value again.
+  // Docs lays out its toolbar from documentElement.clientWidth, which can
+  // only be overridden in the page's main world. We pass the target width
+  // through a data attribute on <html> and resize-bridge.js applies it.
 
-  // Guard: prevents our window resize listener from looping back into
-  // applySplitWidth while the bridge's resize event is in flight.
+  // Prevents our resize listener from looping while the bridge resizes.
   let _inTriggerResize = false;
 
-  // Communicate with resize-bridge.js (which runs in the page's main world).
-  // We write the desired doc width into a data attribute on <html> (DOM
-  // attributes are shared across JS worlds), then fire a custom event that
-  // the bridge picks up, applies Object.defineProperty, and dispatches a
-  // real resize event — all in the main world alongside Google Docs.
   function triggerDocsResize(docWidth) {
     if (_inTriggerResize) return;
     _inTriggerResize = true;
@@ -171,8 +148,7 @@
     }
   });
 
-  // Center the editor's horizontal scroll after a width change so the
-  // document page stays centered in the available space.
+  // Keep the document page centered after a width change.
   function centerEditorScroll() {
     const editor = document.querySelector('.kix-appview-editor');
     if (!editor) return;
@@ -268,9 +244,7 @@ bootstrap();
         _pendingPopupView = null;
         closeTopBarMenu();
 
-        // The request is armed on pointer-down and dispatched immediately
-        // after pointer-up. The zero-delay task lets Chrome finish the native
-        // outside-click dismissal before opening the replacement action popup.
+        // Deferred so Chrome finishes dismissing the old popup first.
         setTimeout(() => {
           sendMessage({ type: 'openPopupView', view })
             .catch(err => toast(err.message || 'Could not open popup.', 'err'));
@@ -316,9 +290,7 @@ bootstrap();
       if (otherMenu && otherMenu !== menu) {
         const betterWasOpen = isTopBarMenuOpen();
         closeTopBarMenu();
-        // Docs only activates a hovered native menu while another native menu
-        // is open. Better's popup is custom, so explicitly activate the
-        // hovered control to preserve that native handoff behavior.
+        // Mimic Docs' native hover handoff between open menus.
         if (betterWasOpen) openNativeTopMenu(otherMenu);
       }
     });
@@ -338,8 +310,6 @@ bootstrap();
   function handleTopBarPointer(event) {
     const action = topBarActionFor(event.target);
     if (!action) return;
-    // Settings/Preamble are armed here on mouse/pointer-down and dispatched
-    // from pointer-up. All other actions run directly on pointer-down.
     if (action !== 'settings' && action !== 'preamble') event.preventDefault();
     event.stopImmediatePropagation();
     if (action === 'toggle') {
@@ -347,8 +317,7 @@ bootstrap();
       else openTopBarMenu(true);
       return;
     }
-    // Keep these buttons rendered through pointer-up. Closing them during
-    // pointer-down used to lose fast clicks intermittently.
+    // Keep buttons rendered until pointer-up so fast clicks aren't lost.
     if (action === 'settings' || action === 'preamble') {
       _pendingPopupView = action;
       return;
@@ -393,9 +362,7 @@ bootstrap();
 
   function closeNativeTopMenu(control) {
     if (!control || control.getAttribute('aria-expanded') !== 'true') return;
-    // Docs handles Escape on its active menu item, not reliably on document.
-    // Focus that item and send the full key sequence to it so the event bubbles
-    // through the same Closure control hierarchy as a real Escape press.
+    // Docs handles Escape on the active menu item, so send it there.
     control.focus();
     const eventInit = {
       key: 'Escape', code: 'Escape', keyCode: 27, which: 27,
@@ -570,9 +537,7 @@ bootstrap();
   // ── Auto-format mode ─────────────────────────────────────────────────────
 
   // Trigger a delta-format immediately on each content-modifying keystroke.
-  // If the API is already running, set the dirty flag so _runAutoFormat will
-  // fire again as soon as the current call finishes — no keystrokes dropped,
-  // no busy-wait loop, no debounce delay.
+  // If a format is already running, set the dirty flag so it re-runs after.
   function scheduleAutoFormat() {
     if (!autoFormatEnabled) return;
     _autoFormatDirty = true;
@@ -593,10 +558,7 @@ bootstrap();
   }
 
   // Handle Ctrl+Shift+F with double-tap detection.
-  // First tap starts a 400 ms window; second tap within that window toggles
-  // auto-format mode. If the window expires alone, format once (existing
-  // behavior). The 400 ms wait is imperceptible since formatting itself
-  // takes several seconds.
+  // Single tap formats once; a second tap within 400 ms toggles auto-format.
   function handleFormatKey() {
     if (fTapTimer !== null) {
       clearTimeout(fTapTimer);
@@ -637,9 +599,6 @@ bootstrap();
           return;
         }
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
-          // Intercepted inside the editing iframe — Docs' top-level
-          // "compact controls" handler won't fire because we stop propagation.
-          // Double-tap within 400 ms → toggle auto-format; single tap → format once.
           e.preventDefault(); e.stopPropagation();
           handleFormatKey();
           return;
@@ -665,7 +624,6 @@ bootstrap();
     toast(stickyToast, 'info', true);
 
     try {
-      // Extract first so we can validate before bothering the server
       let extracted;
       try {
         extracted = await extractDocumentText();
@@ -674,11 +632,10 @@ bootstrap();
       }
       captureDocTitle();
 
-      // ── Blank document guard — short-circuit BEFORE any server call ──────
       const hasText   = (extracted.text || '').trim().length > 0;
       const hasImages = (extracted.images || []).length > 0;
       if (!hasText && !hasImages) {
-        // Show ONLY the toast for blank docs — don't route to split/tab
+        // Blank docs only get the toast
         toast('Cannot render: the document is blank. Add some content first.', 'err');
         return { ok: false, blank: true, error: 'Document is blank.' };
       }
@@ -711,8 +668,7 @@ bootstrap();
 
     } catch (err) {
       const msg = err.message || String(err);
-      // Hide the sticky "Rendering…" toast — but DON'T show an error toast.
-      // The error is routed to the chosen destination (split panel or new tab).
+      // Errors are shown in the render destination, not as a toast.
       toast('', 'info'); // dismiss any sticky toast quickly
       try {
         const t = document.getElementById('bal-toast');
@@ -726,8 +682,7 @@ bootstrap();
         showSplitError(msg);
       }
 
-      // Re-throw so popup callers know it failed — but the popup will
-      // suppress its own status display for render errors (see popup.js).
+      // Re-throw so callers know it failed (popup.js suppresses the message).
       throw err;
     } finally {
       busy = false;
@@ -899,20 +854,15 @@ bootstrap();
     splitState.title.textContent = fileName || 'Rendered PDF';
     splitState.panel.classList.add('open');
 
-    // PDF open-parameters: #view=FitH is the standards-compliant
-    // fit-horizontal hint that Chrome's PDFium viewer honours reliably,
-    // unlike #zoom=page-width which is silently ignored in many builds.
+    // #view=FitH is honored by Chrome's PDF viewer; #zoom=page-width is not.
     const pdfUrlWithZoom = url + '#view=FitH&toolbar=1';
 
     splitState.frame.removeAttribute('srcdoc');
     splitState.frame.src = pdfUrlWithZoom;
 
-    // Show the panel and immediately set the width override + trigger Docs resize.
-    // Use saved width if available; setSplitLayoutEnabled defaults to 50% when 0.
     setSplitLayoutEnabled(true, _savedPanelWidth || 0);
     applySplitWidth();
 
-    // Re-apply after iframe loads (iframe dimensions may shift the panel slightly).
     const reapply = () => {
       applySplitWidth();
       centerEditorScroll();
@@ -1005,10 +955,8 @@ bootstrap();
       try {
         const parsed = await strategy();
         if (parsed && ((parsed.text || '').trim().length > 0 || (parsed.images || []).length > 0)) {
-          // Docs sometimes exposes only text/plain on the synthetic-copy
-          // path. It is useful as a fallback, but it has already flattened
-          // tables and page-break markup, so prefer the HTML export before
-          // accepting it as the render source.
+          // text/plain has already flattened tables and page breaks, so prefer
+          // the HTML export over it.
           if (strategy === extractViaClipboard && !parsed.richHtml) {
             plainClipboardFallback = parsed;
             continue;
@@ -1017,8 +965,6 @@ bootstrap();
           return parsed;
         }
       } catch (err) {
-        // The clipboard-based path is fragile in Google Docs. Keep trying
-        // the export-based fallback before surfacing anything to the user.
         lastError = err;
       }
     }
@@ -1055,15 +1001,10 @@ bootstrap();
     try { targetDoc.addEventListener('copy', onCopy, false); } catch (_) {}
     window.addEventListener('copy', onCopy, false);
 
-    // Run a single focus → selectAll → copy attempt and report whether it
-    // produced any content.
     const attemptCopy = async () => {
       captured = null;
       try {
-        // If the rendered-PDF iframe currently holds focus — common when the
-        // render was triggered by keyboard while the split panel was focused —
-        // it swallows the selection and the copy captures nothing. Pull focus
-        // back to the top window and the Docs editing surface first.
+        // A focused PDF iframe swallows the selection; refocus the editor.
         try { window.focus(); } catch (_) {}
         if (splitState.frame && document.activeElement === splitState.frame) {
           try { splitState.frame.blur(); } catch (_) {}
@@ -1072,11 +1013,7 @@ bootstrap();
         if (targetWin) targetWin.focus();
       } catch (_) {}
 
-      // CRITICAL: give the focus change a tick to settle before selecting.
-      // focus() is asynchronous in effect — selecting/copying in the same tick
-      // captures an empty selection and produces a blank document. This races
-      // whenever focus was elsewhere: just after switching render destination
-      // in the popup, or with the split-view PDF focused.
+      // focus() settles asynchronously; selecting in the same tick copies nothing.
       await new Promise(r => setTimeout(r, 100));
 
       let copyOk = false;
@@ -1095,9 +1032,7 @@ bootstrap();
 
     let result;
     try {
-      // Retry a few times if the copy comes back empty — this is exactly the
-      // case when focus was elsewhere (split-view PDF focused, or just after
-      // switching render destination). Each attempt re-asserts editor focus.
+      // Retry if the copy came back empty.
       result = await attemptCopy();
       for (let i = 0; i < 2 && !result.hasContent; i++) {
         result = await attemptCopy();
@@ -1190,11 +1125,8 @@ bootstrap();
     return null;
   }
 
-  // Google Docs' plain-text streams (clipboard text/plain, /export?format=txt)
-  // use U+000B (vertical tab) for a soft line break (Shift+Enter) and U+000C
-  // (form feed) for a manual page break. Neither has any effect as a bare
-  // '\n' in LaTeX source (a single newline is ordinary whitespace there), so
-  // map them to real LaTeX breaks before folding into the body text.
+  // Docs plain text uses U+000B for soft line breaks and U+000C for page
+  // breaks; map them to real LaTeX breaks.
   function normalizePlainTextBreaks(t) {
     return (t || '')
       .replace(/\u000C/g, '\n\\newpage\n')
@@ -1245,11 +1177,9 @@ bootstrap();
     const out = [];
     let imgIdx = 0;
 
-    // Google Docs HTML exports put most character formatting in generated
-    // classes (for example `.c4{font-weight:700}`), not inline style
-    // attributes. DOMParser does not give this detached document a usable
-    // getComputedStyle(), so retain the declarations for simple class rules
-    // and combine them with each element's inline style below.
+    // Docs HTML exports put formatting in generated classes (e.g.
+    // .c4{font-weight:700}), so collect simple class rules to combine with
+    // inline styles.
     const classStyleText = new Map();
     const parsedDocument = root.ownerDocument;
     for (const styleNode of parsedDocument.querySelectorAll('style')) {
@@ -1310,10 +1240,8 @@ bootstrap();
       };
     }
 
-    // A blank line is how LaTeX marks a paragraph break, but it is a hard
-    // error inside math/verbatim/tabular environments and loosens list
-    // spacing. Track how deep we are inside those, so a Docs paragraph
-    // break degrades back to a bare newline there.
+    // Blank lines (paragraph breaks) are errors inside math/verbatim/tabular,
+    // so track nesting depth and fall back to a plain newline there.
     const TIGHT_ENV = /\\(begin|end)\s*\{\s*(equation\*?|align(?:at)?\*?|gather\*?|multline\*?|flalign\*?|eqnarray\*?|displaymath|split|array|[bBpvV]matrix|smallmatrix|cases|dcases|verbatim|lstlisting|minted|tabular[*x]?|itemize|enumerate|description)\s*\}/g;
     let envDepth = 0;
 
@@ -1342,9 +1270,7 @@ bootstrap();
       return colorToHex(cssProperty(style, 'color') || el.getAttribute('color'));
     }
 
-    // Google Docs text colours are intentionally not represented in the
-    // generated LaTeX.  This keeps source text neutral and lets the formatter
-    // reserve colour for LaTeX syntax highlighting.
+    // Docs text colours are ignored; colour is reserved for the formatter.
     function formatText(text, fmt) {
       let result = text;
       if (fmt.italic)    result = '\\textit{' + result + '}';
@@ -1363,9 +1289,7 @@ bootstrap();
     }
 
     function elementWidthPt(el) {
-      // Docs HTML exports normally assign table-cell widths through generated
-      // classes rather than inline declarations. Use the resolved class +
-      // inline style text so those widths do not fall back to equal columns.
+      // Cell widths usually come from generated classes, not inline styles.
       const style = styleTextForElement(el);
       return cssWidthToPt(cssProperty(style, 'width') || el.getAttribute('width'));
     }
@@ -1379,22 +1303,15 @@ bootstrap();
       );
     }
 
-    // Google Docs includes tables in both its clipboard HTML and its HTML
-    // export.  A table has no useful representation in the plain-text
-    // fallback, so convert it while we still have the row/cell structure.
-    // Cell text deliberately remains LaTeX source (as does all other text
-    // extracted by this extension), which means users can still use commands
-    // such as $x^2$ inside a cell.  A literal ampersand should therefore be
-    // written as \& in the Google Doc, just as it would in a .tex file.
+    // Tables become tabular. Cell text stays LaTeX source, so a literal &
+    // must be written as \& in the doc.
     function tableCellToLatex(cell) {
       const pieces = [];
 
       function collect(node, fmt) {
         if (node.nodeType === Node.TEXT_NODE) {
           let text = node.nodeValue || '';
-          // Indentation/newlines in exported table HTML are layout whitespace,
-          // not table-cell content.  A tabular `l` column cannot safely hold
-          // paragraph breaks, so fold those to spaces.
+          // Fold layout whitespace to spaces; an `l` column can't hold breaks.
           text = text.replace(/\s+/g, ' ');
           if (!text) return;
           pieces.push(formatText(text, fmt));
@@ -1435,9 +1352,7 @@ bootstrap();
       );
       if (!columnCount) return;
 
-      // Docs' HTML export normally puts widths on <col> elements; some
-      // documents instead put them on individual cells. Preserve either form
-      // as fixed-width LaTeX paragraph columns.
+      // Widths may be on <col> elements or on cells; use fixed-width p columns.
       const columnWidths = Array(columnCount).fill(null);
       Array.from(table.querySelectorAll('col')).forEach((col, index) => {
         if (index < columnCount && col.closest('table') === table) columnWidths[index] = elementWidthPt(col);

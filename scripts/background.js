@@ -18,20 +18,11 @@ import {
 
 // ── Formatter backend (Apps Script web app) helpers ─────────────────────────
 //
-// Content-Type must be 'text/plain' (a CORS-safelisted value) rather than
-// 'application/json' — Apps Script's /exec endpoint has no doOptions() hook,
-// so an application/json request would trigger a preflight it can't answer.
-// text/plain keeps this a "simple request" that skips preflight entirely.
-// The body is still JSON on the wire; Apps Script parses it via
-// JSON.parse(e.postData.contents).
+// Content-Type is text/plain so the request stays a CORS "simple request";
+// Apps Script's /exec has no doOptions() to answer a preflight. The body is
+// still JSON.
 
 async function getAppsScriptUrl() {
-  // Single source of truth: the shared backend baked into the extension.
-  // There is deliberately no per-user override stored in chrome.storage —
-  // a stale override left over from testing is exactly what caused a 404
-  // (the extension was silently calling an old/wrong deployment URL while
-  // a browser tab test against the current URL succeeded). One constant,
-  // one place to update it (APPS_SCRIPT_URL in shared.js).
   if (!APPS_SCRIPT_URL) {
     throw new Error('No Apps Script formatter URL configured (APPS_SCRIPT_URL is empty in shared.js).');
   }
@@ -49,17 +40,11 @@ async function callAppsScript(url, payload) {
       body: JSON.stringify(payload)
     });
   } catch (err) {
-    // Log the actual thrown error object, not a paraphrase — fetch-level
-    // failures (network down, CORS, etc.) carry useful detail in err.stack
-    // that a wrapped message string loses.
     console.error('[BAL formatter] fetch() threw:', err);
     throw new Error('Could not reach the Apps Script formatter. ' + (err.message || err));
   }
 
-  // Always read the body before deciding how to report status — Google
-  // fills error responses (404, 403, etc.) with real explanatory text, and
-  // discarding it (as this used to do) hides the actual cause behind a
-  // generic "returned status N" message.
+  // Google's error pages explain the failure, so keep the body for the message.
   const rawText = await response.text();
   console.log('[BAL formatter] response', response.status, response.url, '\nbody:', rawText);
 
@@ -74,10 +59,7 @@ async function callAppsScript(url, payload) {
   try {
     data = JSON.parse(rawText);
   } catch (parseError) {
-    // Non-JSON on a 200 usually means Google served an HTML page instead of
-    // the script's output — most commonly its auth/consent page when the
-    // caller hasn't authorized the deployment's OAuth scopes yet ("Execute
-    // as: User accessing the web app" requires per-user authorization).
+    // Usually Google's consent page: the user hasn't authorized the script yet.
     throw new Error(
       'Apps Script formatter returned a non-JSON response (likely an auth/consent ' +
       'page — open the /exec URL directly in a browser tab to authorize it). ' +
@@ -95,23 +77,12 @@ async function callAppsScript(url, payload) {
   return data;
 }
 
-// ── Keep-alive ping ──────────────────────────────────────────────────────────
-//
-// Chrome MV3 service workers are killed after ~30 s of inactivity, which
-// drops any in-flight fetch mid-stream. We set an alarm that fires every
-// 25 s and does nothing — it just keeps the worker alive for the duration
-// of a render (texlive.net can take 20-40 s on complex documents).
+// MV3 service workers are killed after ~30 s idle, which would drop a long
+// texlive.net render mid-fetch. A no-op alarm every ~25 s keeps it alive.
+chrome.alarms.create('keepAlive', { periodInMinutes: 0.4 });
+chrome.alarms.onAlarm.addListener(() => {});
 
-chrome.alarms.create('keepAlive', { periodInMinutes: 0.4 }); // every 25 s
-chrome.alarms.onAlarm.addListener(() => { /* no-op — just stays awake */ });
-
-// ── Multipart body construction ──────────────────────────────────────────────
-//
-// IMPORTANT: Do NOT set Content-Type manually when using fetch() with a
-// FormData object — the browser will set the correct multipart boundary
-// automatically. Setting it by hand breaks the boundary string and causes
-// texlive.net to reject the request or return garbage.
-
+// Don't set Content-Type by hand for FormData; the browser adds the boundary.
 function buildFormData(latexSource, images, styFiles) {
   const fd = new FormData();
 
@@ -134,15 +105,10 @@ function buildFormData(latexSource, images, styFiles) {
   return fd;
 }
 
-// ── Fetch with timeout + retry ───────────────────────────────────────────────
-//
-// texlive.net is a public free service that occasionally drops connections
-// or returns 5xx. We retry up to MAX_ATTEMPTS times with exponential back-off.
-// Each individual attempt is given TIMEOUT_MS before we abort it.
-
+// texlive.net occasionally drops connections, so retry with back-off.
 const MAX_ATTEMPTS = 3;
-const TIMEOUT_MS   = 90_000;   // 90 s — long docs can take a while to compile
-const BACKOFF_MS   = 2_000;    // wait 2 s before first retry, 4 s before second
+const TIMEOUT_MS   = 90_000;
+const BACKOFF_MS   = 2_000;
 
 async function fetchWithRetry(url, formData) {
   let lastErr;
@@ -152,30 +118,27 @@ async function fetchWithRetry(url, formData) {
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      // Let the browser set Content-Type (with correct boundary) automatically
       const response = await fetch(url, {
         method: 'POST',
         body:   formData,
         signal: controller.signal
       });
       clearTimeout(timer);
-      return response;          // caller checks .ok / content-type
+      return response;
     } catch (err) {
       clearTimeout(timer);
       lastErr = err;
 
       const isAbort   = err.name === 'AbortError';
-      const isNetwork = err instanceof TypeError; // "Failed to fetch"
+      const isNetwork = err instanceof TypeError;
 
-      if (!isAbort && !isNetwork) throw err;      // unexpected — don't retry
+      if (!isAbort && !isNetwork) throw err;
       if (attempt === MAX_ATTEMPTS) break;
 
-      // Exponential back-off before retry
       await new Promise(r => setTimeout(r, BACKOFF_MS * attempt));
     }
   }
 
-  // All attempts failed — give the user a clear message
   throw new Error(
     `Network error: could not reach texlive.net after ${MAX_ATTEMPTS} attempts.\n` +
     `Check your internet connection and try again.\n\n` +
@@ -215,16 +178,11 @@ async function renderPdf({ title, bodyText, images, docId }) {
   };
 }
 
-// ── Keyboard commands (browser-level, work even over the PDF viewer) ──────────
+// ── Keyboard commands ────────────────────────────────────────────────────────
 //
-// In-page keydown listeners can't see keystrokes while the rendered PDF has
-// focus (split-screen iframe or a new tab), because Chrome's PDF viewer is a
-// sandboxed context we can't attach to. chrome.commands fire at the browser
-// level regardless of focus. We route the action to the right Google Docs tab:
-//   • split-screen → the PDF lives inside the Docs tab, so the active tab IS
-//     the Docs tab.
-//   • new tab → the active tab is the PDF tab, so we fall back to the last
-//     Docs tab that initiated a render.
+// In-page keydown listeners can't see keys while Chrome's PDF viewer has
+// focus, so the shortcuts are also chrome.commands. Route them to the active
+// Docs tab, or to the last Docs tab that rendered (new-tab mode).
 
 let lastDocsTabId = null;
 
@@ -289,8 +247,7 @@ async function sendPopupNavigation(route) {
     });
     return response?.ok === true;
   } catch (_) {
-    // A newly-created popup can exist before popup.js has installed its
-    // listener. Its startup path consumes the same route from session storage.
+    // Popup may not have its listener yet; it reads the route from storage.
     return false;
   }
 }
@@ -307,8 +264,7 @@ async function openActionPopupView(view, sender) {
     throw new Error('Unknown popup view: ' + view);
   }
 
-  // Store the route first. This makes opening atomic from the popup's point of
-  // view: its very first script run already knows which page it should show.
+  // Store the route first so the popup knows which page to show on startup.
   const route = {
     view,
     requestId: `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -318,15 +274,10 @@ async function openActionPopupView(view, sender) {
   const existingContexts = await getActionPopupContexts();
   if (existingContexts.length > 0) {
     if (sender.tab) {
-      // Clicking inside Google Docs dismisses an already-open Chrome action
-      // popup. The content-script message can reach us just before Chrome has
-      // removed that popup context, so opening/navigating it at this instant
-      // is lost with the old popup. Wait for that dismissal to finish, then
-      // continue below and create the replacement action popup.
+      // A click inside Docs dismisses the open popup; wait for that to finish
+      // before opening a new one, otherwise navigate the existing popup.
       const closed = await waitForActionPopupToClose();
       if (!closed) {
-        // If Chrome did not dismiss it (for example, the request was generated
-        // without an outside click), route the existing popup in place.
         await sendPopupNavigation(route);
         return;
       }
@@ -341,13 +292,10 @@ async function openActionPopupView(view, sender) {
     : { windowId: sender.tab.windowId };
 
   try {
-    // This opens manifest.action.default_popup—the same popup shown when the
-    // user clicks BETTER AutoLaTeX in Chrome's extension toolbar.
     if (options) await chrome.action.openPopup(options);
     else await chrome.action.openPopup();
   } catch (error) {
-    // The popup may have opened between getContexts() and openPopup(). In that
-    // case it must be routed live instead of reporting "already open".
+    // The popup may have opened in the meantime; route it instead of failing.
     const contextsAfterError = await getActionPopupContexts();
     if (contextsAfterError.length === 0) {
       await clearPopupRoute(route);
@@ -360,8 +308,6 @@ async function openActionPopupView(view, sender) {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     try {
-      // Remember which Google Docs tab last asked us to render, so a keyboard
-      // command fired from a separate PDF tab knows where to route.
       if (sender.tab && DOCS_URL_RE.test(sender.tab.url || '')) {
         lastDocsTabId = sender.tab.id;
       }
@@ -470,13 +416,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           break;
         }
 
-        // ── Formatter backend (Apps Script web app) ──────────────────────
-        //
-        // Content scripts lost the CORS bypass for cross-origin fetch in
-        // Chrome 85 (they'd send Origin: https://docs.google.com, which
-        // script.google.com/googleusercontent.com won't echo back). Extension
-        // pages/workers still bypass CORS entirely, so the call is relayed
-        // through here rather than made directly from formatter.js.
+        // Formatter calls are relayed here because content scripts are
+        // subject to CORS and the service worker is not.
 
         case 'formatRead': {
           const url = await getAppsScriptUrl();
@@ -504,42 +445,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 
-/**
- * Parse a LaTeX compilation log and extract the actual error(s).
- *
- * LaTeX logs are 90% setup noise (package loading, font registration). The
- * actual errors look like:
- *   ! Undefined control sequence.
- *   l.42 \notacommand
- *                    foo
- *   ! LaTeX Error: Environment xyz undefined.
- * Sometimes wrapped across multiple lines.
- *
- * We surface those error blocks at the top, then the trailing portion of
- * the log (the part right before texlive.net gave up) for context, then
- * a compressed view of the rest.
- */
+// Pull the "! ..." error blocks (with their "l.N" source pointer) to the top
+// of a LaTeX log, followed by the tail of the log for context.
 function formatLatexError(log) {
   if (!log) return 'LaTeX compilation failed (no log returned by texlive.net).';
 
   const lines = log.split(/\r?\n/);
   const errors = [];
 
-  // Capture each "! ..." block (the error message + the next ~6 lines for context)
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line.startsWith('!')) {
       const block = [line];
-      // Grab following lines until the next blank line or the next "!" or
-      // until we've taken 8 lines — that captures the "l.N <source>" pointer
-      // and any continuation.
       for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
         const next = lines[j];
         if (next.startsWith('!')) break;
         block.push(next);
-        // Stop just after the line-number indicator "l.NNN ..."
         if (/^l\.\d+/.test(next.trim())) {
-          // Include one more line (the source caret indicator) if present
           if (j + 1 < lines.length) block.push(lines[j + 1]);
           break;
         }
@@ -557,8 +479,6 @@ function formatLatexError(log) {
     out += '\n\n── FULL LOG (last 3000 chars) ──\n\n';
     out += log.slice(-3000);
   } else {
-    // No "!" lines — fall back to showing the tail of the log (where the
-    // crash usually is). Also check for runaway-argument or out-of-memory.
     out += 'LaTeX compilation failed but no explicit error line was found.\n\n';
     out += '── FULL LOG (last 5000 chars) ──\n\n';
     out += log.slice(-5000);

@@ -1,19 +1,10 @@
 // Shared constants, settings keys, default preambles, and LaTeX helpers.
-// The LaTeX logic (preambles, decoder, escape rules, body normalization) is
-// preserved 1:1 from the original Apps Script add-on, so renders are
-// byte-identical to what the user got before.
+// The LaTeX logic is kept identical to the original Apps Script add-on.
 
 export const TEXLIVE_ENDPOINT = 'https://texlive.net/cgi-bin/latexcgi';
 
-// Shared formatter backend — one deployment, "Execute as: User accessing the
-// web app", used by every install with no per-user setup and no override.
-// Each caller authorizes the script's OAuth scopes under their own account
-// the first time they use it (a real Google consent screen; see
-// AppsScript.gs), so it only ever touches documents that caller can access.
-// This is the ONLY place this URL lives — there is deliberately no per-user
-// storage override anymore (one used to exist in Settings; a stale value
-// left there silently shadowed this constant and caused 404s, since
-// background.js was calling the old override instead of this URL).
+// Shared formatter backend (AppsScript.gs deployed as "Execute as: User
+// accessing the web app"). See FORMATTER_SETUP.md for how to redeploy.
 export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5jMbf7fJPBY59YsVOyCyUnqL2OpgjkheVPkHIQeBrbdPGAtNcVZ8WidbEfVaKr5QS/exec';
 
 export const SK = {
@@ -209,7 +200,7 @@ export const LUA_DECODER = [
   '}'
 ].join('\n');
 
-// ── Helpers (mirror originals from Code.gs) ─────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 export function escapeLatexText(value) {
   const r = {
@@ -279,8 +270,6 @@ export function buildLatexDocument(title, bodyText, settings, preamble) {
     resultLines.unshift('\\newcommand{\\documentName}{' + escapedTitle + '}');
   }
   if (!xcolorInjected) {
-    // A custom preamble without a documentclass is invalid LaTeX already;
-    // keep the package alongside its other preamble material in that case.
     resultLines.push('\\usepackage[table]{xcolor}');
   }
 
